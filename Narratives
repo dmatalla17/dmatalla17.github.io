@@ -1,0 +1,47 @@
+Narratives: 
+
+Software Design:
+
+As I mentioned in my code review, I was working on this project quite some time ago and never 
+actually got around to finishing it. So, for this piece, since I started out with a very good 
+foundation in the software design element, I focused on adding comments and making sure everything 
+was detailed as needed. I added some enhancement to the Application.java script to include a search 
+bar as well as a function that will allow users of the application to search for other resources 
+present in the database. The reason this was needed was to incorporate additional functionality 
+comparable to a traditional search engine. I selected this item because I was already familiar with 
+the code and I believe that it properly represents everything that we were supposed to do for this 
+capstone. As of right now, all of the objectives I mentioned during milestone one have been included 
+and built upon which will assist in insuring that my project is as well put together as possible 
+within the 8-week course. I believe that implementing the factors mentioned, specifically the search 
+bar was a bit challenging. I couldn’t initially get the function to work as I needed, but ultimately, 
+I was successful. I also learned how to properly comment, and it also helped emphasize why I should’ve 
+made these comments originally when working on this project. 
+
+Algorithm:
+
+Similar to my last submission, this is a project that I was building quite some time ago that I decided 
+to attempt to complete for this course. For this segment specifically, I decided to focus on the 
+development and improvement of the search function feature alongside the resource addition and update 
+functions. These pieces are included in my portfolio because they fulfill the automation segment of the 
+project. Being able to automatically search for resources that are currently present as well as 
+simultaneously add and update resources that the user has added displays some level of competence in the 
+Algorithms and Data Structure piece of this course. I believe the pieces I’ve already completed and 
+submitted are fairly well put together and meet the current requirements. I learned quite a bit considering 
+my last attempt at this project. When I initially started, I felt as though perhaps my planning was poor 
+and obviously my coding abilities weren’t as refined. Since then, I’ve been able to complete much more 
+difficult assignments for my degree as well as at my position allowing me to somewhat flourish within 
+the Programming space. 
+
+Database:
+
+This artifact was created back when I initially was working on this project but was never finalized and 
+included in the rest of the project as I couldn’t get it to work. This piece is the MySQL connection using 
+XAMPP that will save all records created/updated in the application as well as where all user data is housed. 
+The reason this item has to be included in the overall project is because this is the piece that will showcase 
+my ability in establishing a database connection as well as display aptitude and understanding in other 
+languages/programs such as MySQL, XAMPP, and Apache. This piece was improved by finalizing the connection with 
+the database ensuring that there is a database that will allow for the storage of data as needed. When it comes 
+to the course objectives, I believe this does meet the course objectives I mentioned in Module One as this meets 
+exactly what I indicated I wanted to do during the first week of this course. I learned quite a bit in using XAMPP, 
+and Apache as for some reason during my time at SNHU, I’ve always had a bit of concern when it comes to establishing 
+a connection between a database along with an application/program that I had also built/am perhaps enhancing. 
