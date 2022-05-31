@@ -1,0 +1,370 @@
+/***********************************************************************************************/
+/*					COVID VACCINE REPORT - 3/11/2021										   */
+/***********************************************************************************************/	
+%let date1 = '01JAN2020'D;
+%let date2 = '28FEB2022'D;
+%let acct_name = DISNEY;
+%let acct_num = '';
+%let proj_num = ;
+%let email = %str(); /*USER EMAIL ADDRESS*/
+%let excel_output = %str(/user/hce/&sysuserid./&proj_num._&acct_name._&date1._&date2..xls);/*Excel file path*/
+
+%server( server=wdctd, userid=&sysuserid. );
+libname ccw teradata  bulkload            =  yes   
+                      access              =  readonly
+                      connection          =  global 
+                      mode                =  teradata  
+                      sql_functions       =  all  
+                      server              =  "&dns."
+                      user                =  "&user.@LDAP" 
+                      password            =  "&pwd."
+                      sql_functions_copy  =  work.dbms_functionslist
+                      schema              =  ccw_intphi_view_prd;
+
+PROC SQL;
+	CREATE TABLE WORK.BULK_DATASET AS 
+	SELECT 
+	CLIENT_ID,
+	CLIENT_ACCT_NUM,
+	CLM_SYS_CLM_ID,
+	ENTPR_CUST_ID,
+	LGCY_MBR_NUM,
+	PATNT_AGE_NUM,
+	CASE 
+		WHEN PATNT_AGE_NUM BETWEEN 0 AND 19 THEN '0-19'
+		WHEN PATNT_AGE_NUM BETWEEN 19 AND 29 THEN '19-29'
+		WHEN PATNT_AGE_NUM BETWEEN 30 AND 39 THEN '30-39'
+		WHEN PATNT_AGE_NUM BETWEEN 40 AND 49 THEN '40-49'
+		WHEN PATNT_AGE_NUM BETWEEN 50 AND 59 THEN '50-59'
+		WHEN PATNT_AGE_NUM BETWEEN 60 AND 69 THEN '60-69'
+		WHEN PATNT_AGE_NUM BETWEEN 70 AND 79 THEN '70-79'
+		WHEN PATNT_AGE_NUM BETWEEN 80 AND 89 THEN '80-89'
+		WHEN PATNT_AGE_NUM BETWEEN 90 AND 99 THEN '90-99'
+	END AS AGE_GROUP,
+	PATNT_GENDR_CD,
+	PATNT_RELSHP_CD,
+	ELGBTY_BRNCH_NUM,
+	SVC_BEG_DT,
+	PD_DT,
+	PROC_CD,
+	NDC,
+	CASE 
+		WHEN (PROC_CD IN ('91300','0001A','0002A') OR NDC IN ('59267100001','59267100002','59267100003','5926710001')) THEN 'PFIZER'
+		WHEN (PROC_CD IN ('91301','0011A','0012A') OR NDC IN ('80777027310','80777027399','8077727310'))THEN 'MODERNA'
+		WHEN (PROC_CD IN ('91302','0021A','0022A') OR NDC IN ('00310122210','0310122210')) THEN 'ASTRAZENECA'
+		WHEN (PROC_CD IN ('91303','0031A') OR NDC IN ('59676058005','5967658005','59676058015'))THEN 'JANSSEN'
+	END AS VACCINE_TYPE,
+	RNDR_PROV_NM,
+	MSC_CD,
+	SUM(DERV_PAYBL_AMT) AS PAID_AMOUNT,
+	SUM(DERV_COST_SHARE_AMT) AS COST_SHARE,
+	SUM(DERV_COST_SHARE_AMT + DERV_PAYBL_AMT) AS PLAN_AMOUNT,
+	CASE 
+		WHEN MSC_CD = '01' THEN "FACILITY"
+		WHEN MSC_CD = '03' THEN "OTHER MEDICAL SERVICE"
+		WHEN MSC_CD = '02' THEN "OUTPATIENT"
+		WHEN MSC_CD = '04' THEN "PROFESSIONAL"
+		WHEN MSC_CD = '05' THEN "PHARMACY"
+	END AS CATEGORY,
+	CASE 
+		WHEN (PROC_CD IN ('0001A','0011A','0021A')) OR (PROC_CD IN ('91301','91300') AND NDC IN ('59267100001','5926710001','80777027399')) OR (NDC IN ('59267100001','5926710001','80777027399')) THEN 'Y'
+		ELSE 'N'
+	END AS FIRST_DOSE,
+	CASE
+		WHEN PROC_CD IN ('0002A','0012A','0022A') OR (PROC_CD IN ('91301','91300') AND NDC IN ('59267100002','59267100003','8077727310','80777027310')) OR (NDC IN ('59267100002','59267100003','8077727310','80777027310')) THEN 'Y'
+		ELSE 'N'
+	END AS SECOND_DOSE,
+	CASE 
+		WHEN PROC_CD IN ('91301','91303','0031A') OR NDC IN ('59676058005','5967658005','59676058015') THEN 'Y'
+		ELSE 'N'
+	END AS JANSSEN,
+	CASE 
+		WHEN PROC_CD IN ('0003A','0004A','0013A','0034A','0053A','0054A', '91306','0064A') THEN 'Y'
+		ELSE 'N'
+	END AS BOOSTER_IND
+	FROM CCW.CLM_LN_MED_MV
+	WHERE CLIENT_ID IN (&acct_num.)
+	AND SVC_BEG_DT BETWEEN &date1. AND &date2.
+	AND PATNT_RELSHP_CD NOT IN ('')
+	AND (PROC_CD IN ('91300', '91301', '91302', '91303','0001A','0002A','0011A','0012A','0021A','0022A','0031A','0003A','0004A','0013A','0034A','0053A','0054A', '91306','0064A')
+	OR NDC IN ('59267100001','59267100002','59267100003','5926710001','80777027310','80777027399','8077727310',
+	'00310122210','0310122210','59676058005','5967658005','59676058015'))
+	GROUP BY 
+	CLIENT_ID,
+	CLIENT_ACCT_NUM,
+	CLM_SYS_CLM_ID,
+	LGCY_MBR_NUM,
+	PATNT_AGE_NUM,
+	CASE 
+		WHEN PATNT_AGE_NUM BETWEEN 0 AND 19 THEN '0-19'
+		WHEN PATNT_AGE_NUM BETWEEN 19 AND 29 THEN '19-29'
+		WHEN PATNT_AGE_NUM BETWEEN 30 AND 39 THEN '30-39'
+		WHEN PATNT_AGE_NUM BETWEEN 40 AND 49 THEN '40-49'
+		WHEN PATNT_AGE_NUM BETWEEN 50 AND 59 THEN '50-59'
+		WHEN PATNT_AGE_NUM BETWEEN 60 AND 69 THEN '60-69'
+		WHEN PATNT_AGE_NUM BETWEEN 70 AND 79 THEN '70-79'
+		WHEN PATNT_AGE_NUM BETWEEN 80 AND 89 THEN '80-89'
+		WHEN PATNT_AGE_NUM BETWEEN 90 AND 99 THEN '90-99'
+	END,
+	PATNT_GENDR_CD,
+	PATNT_RELSHP_CD,
+	ELGBTY_BRNCH_NUM,
+	SVC_BEG_DT,
+	PD_DT,
+	PROC_CD,
+	NDC,
+	CASE 
+		WHEN (PROC_CD IN ('91300','0001A','0002A') OR NDC IN ('59267100001','59267100002','59267100003','5926710001')) THEN 'PFIZER'
+		WHEN (PROC_CD IN ('91301','0011A','0012A') OR NDC IN ('80777027310','80777027399','8077727310'))THEN 'MODERNA'
+		WHEN (PROC_CD IN ('91302','0021A','0022A') OR NDC IN ('00310122210','0310122210')) THEN 'ASTRAZENECA'
+		WHEN (PROC_CD IN ('91303','0031A') OR NDC IN ('59676058005','5967658005','59676058015'))THEN 'JANSSEN'
+	END,
+	RNDR_PROV_NM,
+	MSC_CD,
+	CASE 
+		WHEN MSC_CD = '01' THEN "FACILITY"
+		WHEN MSC_CD = '03' THEN "OTHER MEDICAL SERVICE"
+		WHEN MSC_CD = '02' THEN "OUTPATIENT"
+		WHEN MSC_CD = '04' THEN "PROFESSIONAL"
+		WHEN MSC_CD = '05' THEN "PHARMACY"
+	END,
+	CASE 
+		WHEN (PROC_CD IN ('0001A','0011A','0021A')) OR (PROC_CD IN ('91301','91300') AND NDC IN ('59267100001','5926710001','80777027399')) OR (NDC IN ('59267100001','5926710001','80777027399'))THEN 'Y'
+		ELSE 'N'
+	END,
+	CASE
+		WHEN PROC_CD IN ('0002A','0012A','0022A') OR (PROC_CD IN ('91301','91300') AND NDC IN ('59267100002','59267100003','8077727310','80777027310')) OR (NDC IN ('59267100002','59267100003','8077727310','80777027310')) THEN 'Y'
+		ELSE 'N'
+	END,
+	CASE 
+		WHEN PROC_CD IN ('91301','91303', '0031A') OR NDC IN ('59676058005','5967658005','59676058015') THEN 'Y'
+		ELSE 'N'
+	END,
+	CASE
+		WHEN PROC_CD IN ('0003A','0004A','0013A','0034A','0053A','0054A', '91306','0064A') THEN 'Y'
+		ELSE 'N'
+	END;
+	QUIT;
+
+	PROC SQL;
+	CREATE TABLE WORK.MEMBER_DEMOGRAPHIC AS
+	SELECT 
+	LGCY_MBR_NUM,
+    ENTPR_CUST_ID,
+    MBR_KEY,
+	CUST_CITY_NM,
+	CUST_ST_CD,
+	CVRG_PER_DT
+    from CCW.MBR_MTH_DTL
+    WHERE CLIENT_ID IN (&acct_num.)
+	AND CVRG_PER_DT BETWEEN '01JAN2021'D AND &date2.
+	ORDER BY ENTPR_CUST_ID;
+	QUIT;
+
+	PROC SORT DATA = WORK.MEMBER_DEMOGRAPHIC;  
+	BY ENTPR_CUST_ID DESCENDING CVRG_PER_DT; 
+	RUN;
+
+	DATA WORK.MEMBER_DEMOGRAPHIC;
+	SET WORK.MEMBER_DEMOGRAPHIC;
+	BY ENTPR_CUST_ID;
+	IF FIRST.ENTPR_CUST_ID;
+	RUN;
+	
+	PROC SQL;
+	CREATE TABLE WORK.DATASET AS 
+	SELECT DISTINCT
+	A.*,
+	B.CUST_CITY_NM,
+	B.CUST_ST_CD
+	FROM WORK.BULK_DATASET AS A
+	LEFT JOIN WORK.MEMBER_DEMOGRAPHIC AS B ON 
+	A.LGCY_MBR_NUM=B.LGCY_MBR_NUM
+	AND A.ENTPR_CUST_ID=B.ENTPR_CUST_ID;
+	QUIT;
+
+	PROC sort DATA=DATASET;
+    by LGCY_MBR_NUM;
+	RUN;
+
+	DATA WORK.DATASET;
+	SET work.DATASET;
+	BY LGCY_MBR_NUM;
+
+	IF first.LGCY_MBR_NUM THEN
+		pnum+1;
+	PATIENT = 'PATIENT'||put(pnum,z6.);
+	RUN;
+
+	PROC sort DATA=DATASET;
+    by CLM_SYS_CLM_ID;
+	RUN;
+	
+	PROC SQL;
+	CREATE TABLE WORK.COST_SHR_CLAIMS AS 
+	SELECT DISTINCT 
+	*
+	FROM WORK.DATASET
+	WHERE COST_SHARE > 0;
+	QUIT;
+/***********************************************************************************/
+/* Create an Excel document with parameters						   			       */
+/***********************************************************************************/
+ods tagsets.ExcelXP file="&excel_output" style=sansPrinter
+
+	options(	
+	sheet_interval='none'
+	sheet_name="Detail"
+	embedded_titles='Yes'	
+	center_horizontal='yes'
+	center_vertical='yes'
+	);
+title   JUSTIFY=CENTER c=white "_";
+title2  BOLD JUSTIFY=CENTER "DISNEY - COVID Vaccine Detail";
+title3  BOLD JUSTIFY=CENTER "CLIENT ID:";
+title4  BOLD JUSTIFY=CENTER "";
+title5  BOLD JUSTIFY=CENTER "&date1 - &date2";
+title6  BOLD JUSTIFY=CENTER "INTERNAL USE ONLY";
+footnote;
+
+PROC REPORT DATA=work.dataset headline headskip missing;
+	columns 
+
+		CLIENT_ACCT_NUM
+		LGCY_MBR_NUM
+		CLM_SYS_CLM_ID
+		PATNT_AGE_NUM 
+		AGE_GROUP
+		PATNT_GENDR_CD
+		PATNT_RELSHP_CD
+		ELGBTY_BRNCH_NUM
+		CUST_CITY_NM
+		CUST_ST_CD
+		SVC_BEG_DT
+		PROC_CD
+		NDC
+		VACCINE_TYPE
+		RNDR_PROV_NM
+		MSC_CD
+		CATEGORY
+		FIRST_DOSE
+		SECOND_DOSE
+		JANSSEN
+		BOOSTER_IND
+		PAID_AMOUNT
+		COST_SHARE
+		PLAN_AMOUNT
+	;
+	DEFINE     CLIENT_ACCT_NUM / DISPLAY  width=18 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Account Number";
+	DEFINE     LGCY_MBR_NUM / DISPLAY  width=18 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Patient Identifier";
+	DEFINE     CLM_SYS_CLM_ID     / DISPLAY  width=18 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Claim Number";
+	DEFINE     PATNT_AGE_NUM   / DISPLAY  width=18 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Age";
+	DEFINE     AGE_GROUP    / DISPLAY  width=20 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Age Group";
+	DEFINE     PATNT_GENDR_CD    / DISPLAY  width=20 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Patient Gender";
+	DEFINE     PATNT_RELSHP_CD  / DISPLAY  width=25 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Relationship Code";
+	DEFINE     ELGBTY_BRNCH_NUM    / DISPLAY  width=20 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Segment";
+	DEFINE     CUST_CITY_NM / DISPLAY width=30 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Patient City";
+	DEFINE     CUST_ST_CD / DISPLAY width=30 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Patient State";
+	DEFINE     SVC_BEG_DT   / DISPLAY width=12 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Service Date";
+	DEFINE     PROC_CD / DISPLAY width=30 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Procedure Code";
+	DEFINE     NDC  / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "NDC";
+	DEFINE     VACCINE_TYPE     / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Vaccine Type";
+	DEFINE     RNDR_PROV_NM    / DISPLAY width=40 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Provider Name";
+	DEFINE     MSC_CD   / DISPLAY width=30 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "MSC Code";
+	DEFINE     CATEGORY   / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "MSC Desc";
+	DEFINE     FIRST_DOSE     / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "First Dosage";
+	DEFINE     SECOND_DOSE  / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Second Dosage";
+	DEFINE     JANSSEN     / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "J&J Dosage";
+	DEFINE     BOOSTER_IND     / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Booster Received";
+	DEFINE     PAID_AMOUNT    / DISPLAY FORMAT=DOLLAR15.2 "Paid Amount";
+	DEFINE     COST_SHARE    / DISPLAY FORMAT=DOLLAR15.2 "Cost Share Amount";
+	DEFINE     PLAN_AMOUNT    / DISPLAY FORMAT=DOLLAR15.2 "Plan Amount";
+RUN;
+
+/***********************************************************************************/
+/* Fill in the second Excel tab with Claims showing Cost Share 			           */
+/***********************************************************************************/
+ods tagsets.ExcelXP style=sansPrinter
+
+	options(	
+	sheet_interval='none'
+	sheet_name="Cost Share Detail"
+	embedded_titles='Yes'	
+	center_horizontal='yes'
+	center_vertical='yes'
+	);
+title   JUSTIFY=CENTER c=white "_";
+title2  BOLD JUSTIFY=CENTER "DISNEY - Claims Showing Cost Share";
+title3  BOLD JUSTIFY=CENTER "CLIENT ID:";
+title4  BOLD JUSTIFY=CENTER "";
+title5  BOLD JUSTIFY=CENTER "&date1 - &date2";
+title6  BOLD JUSTIFY=CENTER "INTERNAL USE ONLY";
+footnote;
+
+PROC REPORT DATA=work.cost_shr_claims headline headskip missing;
+	columns 
+
+		CLIENT_ACCT_NUM
+		LGCY_MBR_NUM
+		CLM_SYS_CLM_ID
+		PATNT_AGE_NUM 
+		AGE_GROUP
+		PATNT_GENDR_CD
+		PATNT_RELSHP_CD
+		ELGBTY_BRNCH_NUM
+		CUST_CITY_NM
+		CUST_ST_CD
+		SVC_BEG_DT
+		PROC_CD
+		NDC
+		VACCINE_TYPE
+		RNDR_PROV_NM
+		MSC_CD
+		CATEGORY
+		FIRST_DOSE
+		SECOND_DOSE
+		JANSSEN
+		BOOSTER_IND
+		PAID_AMOUNT
+		COST_SHARE
+		PLAN_AMOUNT
+	;
+	DEFINE     CLIENT_ACCT_NUM / DISPLAY  width=18 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Account Number";
+	DEFINE     LGCY_MBR_NUM / DISPLAY  width=18 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Member ID";
+	DEFINE     CLM_SYS_CLM_ID     / DISPLAY  width=18 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Claim Number";
+	DEFINE     PATNT_AGE_NUM   / DISPLAY  width=18 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Age";
+	DEFINE     AGE_GROUP    / DISPLAY  width=20 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Age Group";
+	DEFINE     PATNT_GENDR_CD    / DISPLAY  width=20 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Patient Gender";
+	DEFINE     PATNT_RELSHP_CD  / DISPLAY  width=25 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Relationship Code";
+	DEFINE     ELGBTY_BRNCH_NUM    / DISPLAY  width=20 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Segment";
+	DEFINE     CUST_CITY_NM / DISPLAY width=30 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Patient City";
+	DEFINE     CUST_ST_CD / DISPLAY width=30 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Patient State";
+	DEFINE     SVC_BEG_DT   / DISPLAY width=12 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Service Date";
+	DEFINE     PROC_CD / DISPLAY width=30 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Procedure Code";
+	DEFINE     NDC  / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "NDC";
+	DEFINE     VACCINE_TYPE     / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Vaccine Type";
+	DEFINE     RNDR_PROV_NM    / DISPLAY width=40 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Provider Name";
+	DEFINE     MSC_CD   / DISPLAY width=30 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "MSC Code";
+	DEFINE     CATEGORY   / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "MSC Desc";
+	DEFINE     FIRST_DOSE     / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "First Dosage";
+	DEFINE     SECOND_DOSE  / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Second Dosage";
+	DEFINE     JANSSEN     / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "J&J Dosage";
+	DEFINE     BOOSTER_IND     / DISPLAY  width=15 STYLE(COLUMN)={TAGATTR='FORMAT:TEXT'} "Booster Received";
+	DEFINE     PAID_AMOUNT    / DISPLAY FORMAT=DOLLAR15.2 "Paid Amount";
+	DEFINE     COST_SHARE    / DISPLAY FORMAT=DOLLAR15.2 "Cost Share Amount";
+	DEFINE     PLAN_AMOUNT    / DISPLAY FORMAT=DOLLAR15.2 "Plan Amount";
+RUN;
+
+ODS TAGSETS.EXCELXP CLOSE;
+filename SENDMAIL email ("&email")                                                                                    
+	cc= "securemessage@cigna.com"                                                                              
+	subject= "&proj_num. - &acct_name. - COVID Vaccine Detail Ad Hoc Completed"                                                           
+	attach = ("&excel_output");
+run;
+
+DATA _NULL_;
+	file SENDMAIL;
+	put "Please find the attached Custom COVID Vaccine Ad-Hoc report for &acct_name.." /;
+	put "This report is intended for Internal use.";
+	put "Use and distribution of this report is limited solely to authorized persons.";
+RUN;
